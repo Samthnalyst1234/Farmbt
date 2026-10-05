@@ -1,0 +1,3 @@
+anthropic>=1.8.0
+openai>=1.100   # used for Grok: xAI serves an OpenAI-compatible API
+python-dotenv>=1.0

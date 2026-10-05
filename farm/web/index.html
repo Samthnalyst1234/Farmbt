@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Farm</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --soft: #f1f1ee; --line: #e6e5e1; --text: #1d1d1b; --muted: #6b6b66;
+  --accent: #2d6cdf; --accent-soft: #e8effc;
+  --good: #1d7a46; --good-soft: #e5f3ea; --warn: #9a6a12; --warn-soft: #fbf1dd; --bad: #b83a3a; --bad-soft: #fbe8e8;
+  --radius: 12px; --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212; --panel: #1a1a1a; --soft: #222221; --line: #2d2d2b; --text: #ecebe8; --muted: #9a9993;
+    --accent: #7aa5ff; --accent-soft: #1e2940;
+    --good: #5cc98c; --good-soft: #17291e; --warn: #e3b45e; --warn-soft: #2f2612; --bad: #f08080; --bad-soft: #321a1a;
+    --on-accent: #0d1526;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+h1, h2, h3 { line-height: 1.3; }
+button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--panel);
+  color: var(--text); padding: 7px 14px; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); font-weight: 600; }
+button.link { border: none; background: none; color: var(--accent); padding: 0; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+input, textarea, select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 11px; width: 100%; }
+
+/* layout */
+.top { display: flex; align-items: center; gap: 12px; padding: 12px 22px; background: var(--panel);
+  border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+.brand { font-weight: 700; font-size: 17px; } .brand span { color: var(--accent); }
+.spacer { flex: 1; }
+.layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 57px); }
+aside { border-right: 1px solid var(--line); padding: 18px 12px; }
+aside .label { font-size: 12px; color: var(--muted); padding: 0 10px 8px; }
+.proj { display: block; width: 100%; text-align: left; border: none; background: none; padding: 9px 10px; border-radius: 8px; margin-bottom: 2px; }
+.proj:hover { background: var(--soft); }
+.proj.active { background: var(--accent-soft); }
+.proj .name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.proj .when { font-size: 12px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; background: var(--muted); }
+.dot.done { background: var(--good); } .dot.running { background: var(--accent); } .dot.paused { background: var(--warn); } .dot.failed { background: var(--bad); }
+main { padding: 28px 28px 80px; min-width: 0; }
+.page { max-width: 900px; margin: 0 auto; }
+
+/* header of a project */
+.head h1 { font-size: 26px; margin: 0 0 6px; }
+.head .mission { color: var(--muted); margin: 0 0 12px; max-width: 70ch; }
+.head-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.head-row select { width: auto; padding: 4px 8px; font-size: 13px; }
+.head-actions { margin-left: auto; display: flex; gap: 8px; }
+.tabs { display: flex; gap: 4px; margin: 22px 0 24px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tab { border: none; background: none; border-radius: 0; padding: 10px 14px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* content blocks */
+.section { margin-bottom: 30px; }
+.section > h2 { font-size: 17px; margin: 0 0 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; }
+.lead { font-size: 17px; margin: 0; }
+.muted { color: var(--muted); } .small { font-size: 13px; }
+.chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 99px; white-space: nowrap;
+  background: var(--soft); color: var(--muted); }
+.chip.good { background: var(--good-soft); color: var(--good); } .chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); } .chip.accent { background: var(--accent-soft); color: var(--accent); }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.opp-title { font-size: 16px; font-weight: 600; margin: 0; flex: 1; min-width: 200px; }
+.rank { width: 26px; height: 26px; border-radius: 50%; background: var(--soft); color: var(--muted); font-size: 13px;
+  font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.next { border-left: 4px solid var(--good); }
+.trust-bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: var(--soft); margin: 12px 0 8px; }
+.trust-bar div { height: 100%; }
+ul.clean { margin: 6px 0 0; padding-left: 20px; } ul.clean li { margin: 3px 0; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.two h4, .card h4, details h4 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 14px 0 4px; }
+
+/* expandable */
+details { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
+details > summary { cursor: pointer; color: var(--accent); font-size: 14px; list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before { content: "▸ "; } details[open] > summary::before { content: "▾ "; }
+details.opp { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 16px 20px; margin: 0 0 12px; }
+details.opp > summary { color: var(--text); font-size: 15px; }
+details.opp > summary::before { content: none; }
+details.opp[open] { padding-bottom: 20px; }
+
+/* evidence */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.filters input { flex: 1; min-width: 200px; } .filters select { width: auto; max-width: 280px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: none; border-radius: 0; padding: 7px 12px; background: var(--panel); }
+.seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.fact { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.fact:first-child { padding-top: 0; } .fact:last-child { border-bottom: none; padding-bottom: 0; }
+.fact .claim { margin: 0 0 6px; }
+.fact .meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.fact details { border: none; margin: 6px 0 0; padding: 0; }
+.quote { border-left: 3px solid var(--line); padding-left: 10px; margin: 6px 0; color: var(--muted); font-size: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px; } th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+.report { line-height: 1.7; } .report h1 { font-size: 24px; } .report h2 { font-size: 19px; margin-top: 30px; }
+.report table { margin: 12px 0; } .report code { font-family: var(--mono); background: var(--soft); padding: 1px 4px; border-radius: 4px; }
+
+/* progress */
+.progress { position: sticky; top: 57px; z-index: 4; background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 22px; }
+.progress.hidden { display: none; }
+.progress .bar { height: 4px; background: var(--soft); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+.progress .bar div { height: 100%; background: var(--accent); transition: width .4s; }
+.progress pre { margin: 10px 0 0; max-height: 220px; overflow: auto; font: 12px/1.45 var(--mono); white-space: pre-wrap;
+  background: var(--soft); border-radius: 8px; padding: 10px; }
+.spin { width: 12px; height: 12px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%;
+  animation: spin .8s linear infinite; display: inline-block; } @keyframes spin { to { transform: rotate(360deg); } }
+
+/* dialog, empty states, toast */
+dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--text);
+  width: min(560px, calc(100vw - 32px)); padding: 24px; } dialog::backdrop { background: rgba(0,0,0,.4); }
+dialog h2 { margin: 0 0 6px; font-size: 19px; } dialog label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+dialog details { border: none; padding: 0; } .grid3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.empty { text-align: center; padding: 70px 20px; color: var(--muted); } .empty h2 { color: var(--text); }
+.examples { display: grid; gap: 8px; max-width: 560px; margin: 18px auto 0; text-align: left; }
+.examples button { text-align: left; }
+.toast { position: fixed; top: 70px; right: 18px; background: var(--bad); color: #fff; padding: 10px 14px; border-radius: 8px; z-index: 20; }
+@media (max-width: 820px) {
+  .layout { grid-template-columns: 1fr; } aside { border-right: none; border-bottom: 1px solid var(--line); display: flex; overflow-x: auto; gap: 4px; padding: 8px; }
+  aside .label { display: none; } .proj { width: auto; white-space: nowrap; } main { padding: 20px 16px 80px; }
+  .two, .grid3 { grid-template-columns: 1fr; } .head-actions { margin-left: 0; } #engine { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Research <span>Farm</span></div>
+  <div class="spacer"></div>
+  <span class="small muted" id="engine"></span>
+  <button class="primary" id="newBtn">New research</button>
+</header>
+
+<div class="progress hidden" id="progress">
+  <div class="row">
+    <span id="pIcon"></span><strong id="pTitle"></strong><span class="muted small" id="pStep"></span>
+    <span class="spacer"></span>
+    <button class="link small" id="pLogBtn">Show details</button>
+    <button class="link small" id="pClose" title="Hide">Hide</button>
+  </div>
+  <div class="bar"><div id="pBar" style="width:0%"></div></div>
+  <pre id="pLog" hidden></pre>
+</div>
+
+<div class="layout">
+  <aside><div class="label">Your projects</div><div id="projects"></div></aside>
+  <main><div class="page" id="main"><div class="empty">Loading…</div></div></main>
+</div>
+
+<dialog id="newDialog">
+  <form method="dialog" id="newForm">
+    <h2>What should the farm research?</h2>
+    <p class="small muted">Describe an area and the problem in it. The agents research it, find what's still unsolved, and suggest solutions.</p>
+    <textarea id="fMission" rows="4" required minlength="10" maxlength="2000"
+      placeholder="e.g. Why do small shops in Lagos struggle to accept digital payments, and what would fix it?"></textarea>
+    <details>
+      <summary class="small">More options</summary>
+      <div class="grid3">
+        <div><label for="fName">Short name</label><input id="fName" placeholder="auto" pattern="[a-z0-9-]{1,40}"></div>
+        <div><label for="fQuestions">Questions</label><input id="fQuestions" type="number" min="1" max="10" placeholder="auto"></div>
+        <div><label for="fSolve">Solve top</label><input id="fSolve" type="number" min="0" max="5" placeholder="auto"></div>
+      </div>
+      <p class="small muted" id="fHint"></p>
+    </details>
+    <div class="actions"><button value="cancel" formnovalidate>Cancel</button><button class="primary" value="ok">Start research</button></div>
+  </form>
+</dialog>
+
+<script>
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const when = iso => iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : "";
+const day = iso => iso ? new Date(iso).toLocaleDateString([], {dateStyle: "medium"}) : "";
+const link = (url, text) => url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text || url)}</a>` : "";
+const host = url => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url || ""; } };
+const human = slug => { const s = String(slug).replace(/-/g, " "); return s.charAt(0).toUpperCase() + s.slice(1); };
+const chip = ([label, tone] = ["?"]) => `<span class="chip ${tone || ""}">${esc(label)}</span>`;
+const bullets = items => items?.length ? `<ul class="clean">${items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : "";
+const bulletsHtml = items => items.length ? `<ul class="clean small">${items.map(i => `<li>${i}</li>`).join("")}</ul>` : "";
+const jobAttr = body => `data-job='${esc(JSON.stringify(body))}'`;
+
+// Plain-language labels for everything the agents produce.
+const VERDICT = {strong: ["Strong", "good"], plausible: ["Likely", "accent"], weak: ["Weak", "warn"],
+                 already_solved: ["Already solved", "bad"], unreviewed: ["Not checked", ""]};
+const TRUST = {verified: ["Confirmed", "good"], read: ["Source read", "good"], seen: ["Search result only", ""],
+               unverified: ["Unchecked", "warn"], disputed: ["Not supported", "bad"]};
+const EXISTS = {exists: ["Already exists", "bad"], partly_exists: ["Partly exists", "warn"], not_found: ["Looks new", "good"]};
+const PICK = {pursue: ["Try this", "good"], maybe: ["Maybe", "accent"], drop: ["Skip", "bad"]};
+const RUN = {done: "Finished", running: "Working", paused: "Paused", failed: "Stopped"};
+const STEPS = [["plan", "Planning the questions"], ["research", "Researching the web"], ["findings", "Collecting findings"],
+  ["verify", "Checking sources"], ["landscape", "Understanding the field"], ["gaps", "Finding gaps"],
+  ["critique", "Stress-testing the gaps"], ["solve", "Designing solutions"], ["report", "Writing the report"]];
+
+const state = {overview: null, runId: null, run: null, tab: "summary", open: null,
+               ev: {trust: "all", q: "all", text: ""}, polling: false, logOpen: false, hiddenJob: null};
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+function toast(msg) {
+  const el = document.createElement("div"); el.className = "toast"; el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 5000);
+}
+
+// ---------- projects ----------
+async function loadOverview() {
+  state.overview = await api("/api/overview");
+  const o = state.overview;
+  $("#engine").textContent = `${o.provider} · ${o.profile}`;
+  $("#engine").title = `Model: ${o.model}. Profile: ${o.profile}.`;
+  $("#fHint").textContent = `Leave blank to use the ${o.profile} profile's defaults (model ${o.model}).`;
+  renderProjects();
+  if (o.jobs[0] && o.jobs[0].status === "running") startPolling();
+  const [hRun, hTab, hGap] = location.hash.slice(1).split("/");
+  const runs = allRuns();
+  const target = runs.find(r => r.id === Number(hRun)) || runs[0];
+  if (hTab && VIEWS[hTab]) state.tab = hTab;
+  state.open = hGap || null;
+  if (target) await openRun(target.id, true); else renderWelcome();
+}
+const allRuns = () => state.overview.projects.flatMap(p => p.runs).sort((a, b) => b.id - a.id);
+const projectOf = runId => state.overview.projects.find(p => p.runs.some(r => r.id === runId));
+
+function renderProjects() {
+  const current = state.runId && projectOf(state.runId);
+  $("#projects").innerHTML = state.overview.projects.map(p => {
+    const last = p.runs[0];
+    return `<button class="proj ${current && current.slug === p.slug ? "active" : ""}" data-run="${last?.id || ""}">
+      <div class="name"><span class="dot ${last?.status || ""}"></span>${esc(human(p.slug))}</div>
+      <div class="when">${last ? `${RUN[last.status] || last.status} · ${esc(day(last.started_at))}` : "No runs yet"}</div></button>`;
+  }).join("") || `<p class="small muted" style="padding:0 10px">None yet</p>`;
+}
+
+function renderWelcome() {
+  const examples = [
+    "How do crop-disease detection apps work, and why do smallholder farmers stop using them?",
+    "Why do small shops in Lagos struggle to accept digital payments, and what would fix it?",
+    "How do route-planning algorithms work for last-mile delivery where addresses are informal, and what breaks?",
+  ];
+  $("#main").innerHTML = `<div class="empty"><h2>Start your first research project</h2>
+    <p>Describe an area and a problem. The farm researches it, finds what's still unsolved, and proposes solutions.</p>
+    <div class="examples">${examples.map(e => `<button data-example="${esc(e)}">${esc(e)}</button>`).join("")}</div></div>`;
+}
+
+// ---------- a run ----------
+async function openRun(id, keep) {
+  state.runId = id;
+  if (!keep) { state.tab = "summary"; state.open = null; state.ev = {trust: "all", q: "all", text: ""}; }
+  try { state.run = await api(`/api/runs/${id}`); } catch (e) { return toast(e.message); }
+  renderProjects();
+  render();
+}
+function setHash() { history.replaceState(null, "", `#${state.runId}/${state.tab}${state.open ? "/" + state.open : ""}`); }
+function go(tab, open) {
+  state.tab = tab; state.open = open || null; render(); window.scrollTo(0, 0);
+  if (open) setTimeout(() => document.getElementById("gap-" + open)?.scrollIntoView({block: "start"}), 50);
+}
+
+function render() {
+  const d = state.run, r = d.run, project = projectOf(r.id);
+  const canContinue = r.status === "paused" || r.status === "failed";
+  const tabs = [["summary", "Summary"], ["opportunities", `Opportunities${d.gaps.length ? ` (${d.gaps.length})` : ""}`],
+                ["evidence", `Evidence${d.findings.length ? ` (${d.findings.length})` : ""}`], ["report", "Full report"]];
+  $("#main").innerHTML = `
+    <div class="head">
+      <h1>${esc(human(d.project.slug))}</h1>
+      <p class="mission">${esc(d.project.mission)}</p>
+      <div class="head-row">
+        <span class="dot ${r.status}"></span><span>${RUN[r.status] || r.status}${r.finished_at ? " " + esc(when(r.finished_at)) : ""}</span>
+        ${project.runs.length > 1 ? `<select id="runPick" title="Earlier runs of this project">${project.runs.map(x =>
+          `<option value="${x.id}" ${x.id === r.id ? "selected" : ""}>Run ${x.id} · ${esc(day(x.started_at))}</option>`).join("")}</select>` : ""}
+        ${r.cost_usd > 0 ? `<span>· cost about $${Number(r.cost_usd).toFixed(2)}</span>` : ""}
+        <div class="head-actions">
+          ${canContinue ? `<button class="primary" ${jobAttr({action: "resume", run_id: r.id})}>Continue this run</button>` : ""}
+          <button ${jobAttr({action: "monitor", name: d.project.slug})} title="Research again and see what changed">Run again</button>
+        </div>
+      </div>
+      ${r.error && r.status !== "done" ? `<p class="small" style="color:var(--bad)">${esc(r.error)}</p>` : ""}
+    </div>
+    <nav class="tabs">${tabs.map(([k, label]) => `<button class="tab ${state.tab === k ? "active" : ""}" data-tab="${k}">${label}</button>`).join("")}</nav>
+    <div id="view">${VIEWS[state.tab](d)}</div>`;
+  setHash();
+}
+
+const openGaps = gaps => gaps.filter(g => !["already_solved", "weak"].includes(g.review.verdict));
+const solutionFor = (d, gid) => d.solutions.find(s => s.gap.id === gid);
+const latestDone = () => { const done = projectOf(state.runId).runs.filter(r => r.status === "done"); return done.length ? done[0].id : null; };
+const sameName = (a, b) => { const n = s => (String(s).toLowerCase().match(/[a-z0-9]+/g) || []).join(" "); a = n(a); b = n(b); return !!a && !!b && (a === b || a.includes(b) || b.includes(a)); };
+const solid = f => ["verified", "read"].includes(f.grounding);
+function trustCounts(findings) {
+  const c = {solid: 0, weak: 0, bad: 0};
+  findings.forEach(f => c[solid(f) ? "solid" : f.grounding === "disputed" ? "bad" : "weak"]++);
+  return c;
+}
+
+const VIEWS = {
+  summary(d) {
+    if (!d.plan) return `<div class="card muted">The farm is still planning this research.</div>`;
+    const open = openGaps(d.gaps), top = open.slice(0, 3), c = trustCounts(d.findings), total = d.findings.length;
+    const sol = top.length && solutionFor(d, top[0].id);
+    const sources = new Set(d.research.flatMap(r => r.sources.map(s => s.url))).size;
+    const share = total ? c.solid / total : 0;
+    const trustLine = share >= .7 ? "Mostly solid" : share >= .4 ? "Mixed" : "Mostly unconfirmed";
+    return `
+      <div class="section"><div class="card"><p class="lead">${esc(d.plan.refined_problem)}</p>
+        <p class="small muted" style="margin:10px 0 0">Researched ${d.plan.research_questions.length} questions · ${total} findings from ${sources} sources · ${d.gaps.length} opportunities found</p></div></div>
+
+      <div class="section"><h2>Best opportunities</h2>
+        ${top.length ? top.map((g, i) => `<div class="card"><div class="row"><span class="rank">${i + 1}</span>
+            <p class="opp-title">${esc(g.title)}</p>${chip(VERDICT[g.review.verdict])}</div>
+            <p class="muted" style="margin:8px 0 6px">${esc(g.description)}</p>
+            <button class="link small" data-go="opportunities" data-open="${esc(g.id)}">See details and solutions →</button></div>`).join("")
+          : `<div class="card muted">${d.gaps.length ? "The critic judged every gap weak or already solved." : "Not found yet."}</div>`}
+      </div>
+
+      ${top.length ? `<div class="section"><h2>Recommended next step</h2>${sol ? `
+        <div class="card next"><p style="margin:0 0 6px"><strong>${esc(sol.best)}</strong></p>
+          <p class="muted" style="margin:0 0 10px">${esc(sol.review.rationale)}</p>
+          <h4>Smallest test to run first</h4><p style="margin:0">${esc(sol.plan.minimum_viable_test)}</p>
+          <button class="link small" style="margin-top:10px" data-go="opportunities" data-open="${esc(top[0].id)}">See the full plan →</button></div>`
+        : `<div class="card next"><p style="margin:0 0 10px">Design solutions for the top opportunity, <strong>${esc(top[0].title)}</strong>.</p>
+          ${solveButton(d, top[0])}</div>`}</div>` : ""}
+
+      ${total ? `<div class="section"><h2>How much can you trust this?</h2><div class="card">
+        <p style="margin:0"><strong>${trustLine}.</strong> ${c.solid} of ${total} findings were confirmed or read at their source${c.bad ? `; ${c.bad} weren't supported by their page` : ""}.</p>
+        <div class="trust-bar"><div style="width:${100 * c.solid / total}%;background:var(--good)"></div><div style="width:${100 * c.weak / total}%;background:var(--warn)"></div><div style="width:${100 * c.bad / total}%;background:var(--bad)"></div></div>
+        <button class="link small" data-go="evidence">Check the evidence →</button></div></div>` : ""}
+
+      ${d.landscape ? `<div class="section"><h2>How it works today</h2><div class="card">
+        <p style="margin:0">${esc(d.landscape.overview)}</p>
+        <details><summary>The ${d.landscape.approaches.length} main approaches</summary>
+          ${d.landscape.approaches.map(a => `<h4>${esc(a.name)}</h4><p style="margin:0 0 4px">${esc(a.how_it_works)}</p>
+            <p class="small muted" style="margin:0">Good at: ${esc(a.strengths.join("; "))}. Weak at: ${esc(a.weaknesses.join("; "))}.</p>`).join("")}
+        </details>
+        ${d.landscape.pain_points.length ? `<details><summary>What people struggle with</summary>${bullets(d.landscape.pain_points.map(p => `${p.pain} (${p.who_feels_it})`))}</details>` : ""}
+      </div></div>` : ""}`;
+  },
+
+  opportunities(d) {
+    if (!d.gaps.length) return `<div class="card muted">Opportunities appear once the farm has finished analysing the research.</div>`;
+    return `<p class="muted small" style="margin-top:0">Ranked best first. Each one was checked by a separate critic agent${d.gaps[0].passes > 1 ? ` and had to show up in most of ${d.gaps[0].passes} independent passes` : ""}. Click one to open it.</p>`
+      + d.gaps.map((g, i) => {
+        const r = g.review, sol = solutionFor(d, g.id), isOpen = state.open ? state.open === g.id : i === 0;
+        return `<details class="opp" id="gap-${esc(g.id)}" ${isOpen ? "open" : ""}>
+          <summary><div class="row"><span class="rank">${i + 1}</span><span class="opp-title">${esc(g.title)}</span>
+            ${chip(VERDICT[r.verdict])}${sol ? chip(["Has solutions", "accent"]) : ""}</div></summary>
+          <p style="margin:14px 0 0">${esc(g.description)}</p>
+          <div class="two"><div><h4>Why it's still unsolved</h4>${esc(g.why_unsolved)}</div><div><h4>What solving it unlocks</h4>${esc(g.opportunity)}</div></div>
+          <p class="small muted" style="margin:12px 0 0">Impact ${esc(g.impact)} · difficulty ${esc(g.difficulty)}${g.passes > 1 ? ` · found in ${g.votes} of ${g.passes} passes` : ""}</p>
+          <details><summary>What the critic found</summary>
+            <p>${esc(r.counter_evidence) || "No counter-evidence found."}</p>
+            ${r.grounded === false ? `<p class="small" style="color:var(--warn)">The critic's links weren't among pages it actually visited, so treat this with care.</p>` : ""}
+            ${r.what_to_verify ? `<p><strong>Check first:</strong> ${esc(r.what_to_verify)}</p>` : ""}
+            ${(r.sources || []).length ? `<p class="small">${r.sources.map(u => link(u, host(u))).join(" · ")}</p>` : ""}
+          </details>
+          ${sol ? solutionBlock(d, sol) : `<details open><summary>Solutions</summary><p class="muted">No solutions designed yet.</p>${solveButton(d, g)}</details>`}
+        </details>`;
+      }).join("");
+  },
+
+  evidence(d) {
+    const f = state.ev;
+    const rows = d.findings.filter(x => (f.trust === "all" || (f.trust === "solid" ? solid(x) : !solid(x)))
+      && (f.q === "all" || x.question_id === f.q)
+      && (!f.text || (x.claim + " " + x.evidence).toLowerCase().includes(f.text.toLowerCase())));
+    const sources = new Map();
+    d.research.forEach(r => r.sources.forEach(s => { if (!sources.has(s.url)) sources.set(s.url, s); }));
+    const seg = (key, label) => `<button class="${f.trust === key ? "on" : ""}" data-trust="${key}">${label}</button>`;
+    const questions = d.plan?.research_questions || [];
+    return `
+      <div class="filters">
+        <input id="evText" placeholder="Search the findings…" value="${esc(f.text)}">
+        <div class="seg">${seg("all", "All")}${seg("solid", "Confirmed")}${seg("check", "Needs checking")}</div>
+        ${questions.length > 1 ? `<select id="evQ"><option value="all">All questions</option>${questions.map(q =>
+          `<option value="${esc(q.id)}" ${f.q === q.id ? "selected" : ""}>${esc(q.question.slice(0, 60))}…</option>`).join("")}</select>` : ""}
+      </div>
+      <div class="card">${rows.map(x => {
+        const v = x.verification, lowered = x.model_confidence && x.model_confidence !== x.confidence;
+        return `<div class="fact"><p class="claim">${esc(x.claim)}</p>
+          <div class="meta">${chip(TRUST[x.grounding] || TRUST.unverified)}${x.source_url ? link(x.source_url, x.source_title || host(x.source_url)) : "no source"}
+            ${lowered ? `<span title="The agent rated this ${esc(x.model_confidence)}, but the source can't back that">rating lowered to ${esc(x.confidence)}</span>` : ""}</div>
+          ${x.evidence || v ? `<details><summary class="small">Details</summary>
+            ${x.evidence ? `<div class="quote">${esc(x.evidence)}</div>` : ""}
+            ${v?.quote ? `<p class="small" style="margin:6px 0 0">Page check: “${esc(v.quote)}”</p>` : ""}
+            ${v?.detail ? `<p class="small muted" style="margin:6px 0 0">${esc(v.detail)}</p>` : ""}</details>` : ""}
+        </div>`;
+      }).join("") || `<p class="muted" style="margin:0">Nothing matches.</p>`}</div>
+      <details><summary>All ${sources.size} sources the researchers came across</summary>
+        <ul class="clean small">${[...sources.values()].map(s => `<li>${link(s.url, s.title || s.url)} <span class="muted">${esc(host(s.url))}</span></li>`).join("")}</ul>
+      </details>`;
+  },
+
+  report(d) {
+    if (!d.report) return `<div class="card muted">The report is written at the end of a run.</div>`;
+    if (window.marked && window.DOMPurify) return `<div class="card report">${DOMPurify.sanitize(marked.parse(d.report))}</div>`;
+    return `<div class="card"><pre style="white-space:pre-wrap">${esc(d.report)}</pre></div>`;
+  },
+};
+
+function solveButton(d, g) {
+  const ok = d.run.id === latestDone();
+  return `<button class="primary" ${ok ? "" : "disabled title='Solutions are designed on the latest finished run'"}
+    ${jobAttr({action: "solve", name: d.project.slug, gap: g.id})}>Design solutions</button>`;
+}
+
+function solutionBlock(d, s) {
+  const rv = s.review, p = s.plan;
+  const score = name => rv.reviews.find(r => sameName(r.name, name)) || {};
+  const prior = name => (s.prior_art || []).find(x => sameName(x.name, name));
+  return `<details open><summary>Solutions</summary>
+    <div class="card next" style="margin:10px 0 0"><p style="margin:0 0 4px"><strong>Recommended: ${esc(s.best)}</strong></p>
+      <p class="muted" style="margin:0">${esc(rv.rationale)}</p></div>
+    <table><thead><tr><th>Option</th><th>Already exists?</th><th>Verdict</th></tr></thead><tbody>
+      ${s.solutions.map(x => { const r = score(x.name), pa = prior(x.name); return `<tr>
+        <td><strong>${esc(x.name)}</strong><div class="small muted">${esc(x.core_idea)}</div></td>
+        <td>${pa ? chip(EXISTS[pa.status]) : `<span class="small muted">not checked</span>`}</td>
+        <td>${r.verdict ? chip(PICK[r.verdict]) : ""}${r.main_weakness ? `<div class="small muted" style="margin-top:4px">${esc(r.main_weakness)}</div>` : ""}</td></tr>`; }).join("")}
+    </tbody></table>
+    ${s.prior_art ? `<details><summary>What already exists</summary>${s.prior_art.map(x => `
+        <h4>${esc(x.name)}: ${esc((EXISTS[x.status] || [x.status])[0].toLowerCase())}</h4>
+        ${x.still_new ? `<p class="small" style="margin:0">Still new: ${esc(x.still_new)}</p>` : ""}
+        ${bulletsHtml(x.closest.map(m => `${link(m.url, m.title)} <span class="muted">(${esc(m.kind.replace("_", " "))})</span>: ${esc(m.how_close)}`))}`).join("")}</details>`
+      : `<p class="small muted">Not checked against existing products yet. <button class="link small" ${jobAttr({action: "solve", name: d.project.slug, gap: s.gap.id, redo: true})}>Redo with a prior-art check</button></p>`}
+    <details><summary>Experiment plan for ${esc(s.best)}</summary>
+      <div class="two"><div><h4>What we expect</h4>${esc(p.hypothesis)}</div><div><h4>Success looks like</h4>${esc(p.success_metric)}</div></div>
+      <h4>Smallest test</h4><p style="margin:0">${esc(p.minimum_viable_test)}</p>
+      <h4>Steps</h4><ol style="margin:4px 0 0">${p.steps.map(st => `<li>${/^\d+\.?$/.test(st.step.trim()) ? "" : `<strong>${esc(st.step)}:</strong> `}${esc(st.detail)}</li>`).join("")}</ol>
+      <div class="two"><div><h4>Data needed</h4>${bullets(p.data_needed)}</div><div><h4>Stop if</h4>${bullets(p.kill_criteria)}</div></div>
+      <p class="small muted">Time: ${esc(p.estimated_time)} · Cost: ${esc(p.estimated_cost)} (the model's estimate; sanity-check it)</p>
+    </details>
+  </details>`;
+}
+
+// ---------- jobs and progress ----------
+async function startJob(body) {
+  try {
+    await api("/api/jobs", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    state.hiddenJob = null;
+    startPolling();
+  } catch (e) { toast(e.message); }
+}
+function stepOf(log) {
+  let idx = -1;
+  for (const line of (log || "").split("\n")) {
+    const m = line.match(/\]\s+(\w+)[:\s]/);
+    if (!m) continue;
+    const i = STEPS.findIndex(([key]) => m[1].startsWith(key) || (key === "solve" && m[1] === "solver"));
+    if (i > idx) idx = i;
+  }
+  return idx;
+}
+function showProgress(job) {
+  const box = $("#progress");
+  if (!job || state.hiddenJob === job.id) return box.classList.add("hidden");
+  box.classList.remove("hidden");
+  const running = job.status === "running", log = job.log || "";
+  const paused = /paused:/.test(log), failed = !running && !paused && job.status !== "finished", i = stepOf(log);
+  $("#pIcon").innerHTML = running ? `<span class="spin"></span>` : paused ? "⏸" : failed ? "⚠" : "✓";
+  $("#pTitle").textContent = (running ? "" : paused ? "Paused: " : failed ? "Stopped: " : "Done: ") + job.label;
+  $("#pStep").textContent = running && i >= 0 ? `Step ${i + 1} of ${STEPS.length}: ${STEPS[i][1]}` :
+    paused ? "The provider's daily limit ran out. Use “Continue this run” later." : failed ? "Show details to see what went wrong." : "";
+  $("#pBar").style.width = running ? `${Math.max(5, 100 * (i + 1) / STEPS.length)}%` : "100%";
+  $("#pBar").style.background = paused ? "var(--warn)" : failed ? "var(--bad)" : "var(--accent)";
+  const pre = $("#pLog"), atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
+  pre.textContent = log || "Starting…"; pre.hidden = !state.logOpen;
+  if (atBottom) pre.scrollTop = pre.scrollHeight;
+  box.dataset.job = job.id;
+}
+function startPolling() {
+  if (state.polling) return;
+  state.polling = true;
+  let ticks = 0;
+  const tick = async () => {
+    let jobs = [];
+    try { jobs = await api("/api/jobs"); } catch {}
+    const job = jobs[0];
+    showProgress(job);
+    const running = job && job.status === "running";
+    if (!running || ++ticks % 4 === 0) {  // refresh the data every few seconds while working, and once at the end
+      const before = new Set(allRuns().map(r => r.id));
+      state.overview = await api("/api/overview");
+      renderProjects();
+      const fresh = allRuns().find(r => !before.has(r.id));
+      if (fresh) await openRun(fresh.id); else if (state.runId) await openRun(state.runId, true);
+    }
+    if (running) setTimeout(tick, 2000); else state.polling = false;
+  };
+  tick();
+}
+
+// ---------- events ----------
+function openNew(text) { $("#newForm").reset(); if (text) $("#fMission").value = text; $("#newDialog").showModal(); }
+$("#newBtn").onclick = () => openNew();
+$("#newDialog").addEventListener("close", () => {
+  if ($("#newDialog").returnValue !== "ok") return;
+  startJob({action: "research", mission: $("#fMission").value.trim(), name: $("#fName").value.trim(),
+            questions: $("#fQuestions").value, solve: $("#fSolve").value});
+});
+$("#pLogBtn").onclick = () => { state.logOpen = !state.logOpen; $("#pLog").hidden = !state.logOpen; $("#pLogBtn").textContent = state.logOpen ? "Hide details" : "Show details"; };
+$("#pClose").onclick = () => { state.hiddenJob = Number($("#progress").dataset.job); $("#progress").classList.add("hidden"); };
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-run],[data-tab],[data-go],[data-job],[data-trust],[data-example]");
+  if (!t || t.disabled) return;
+  if (t.dataset.run) return openRun(Number(t.dataset.run));
+  if (t.dataset.tab) return go(t.dataset.tab);
+  if (t.dataset.go) return go(t.dataset.go, t.dataset.open);
+  if (t.dataset.job) return startJob(JSON.parse(t.dataset.job));
+  if (t.dataset.trust) { state.ev.trust = t.dataset.trust; return render(); }
+  if (t.dataset.example) return openNew(t.dataset.example);
+});
+document.addEventListener("change", e => {
+  if (e.target.id === "runPick") openRun(Number(e.target.value), false);
+  if (e.target.id === "evQ") { state.ev.q = e.target.value; render(); }
+});
+document.addEventListener("input", e => {
+  if (e.target.id !== "evText") return;
+  state.ev.text = e.target.value;
+  const pos = e.target.selectionStart; render();
+  const input = $("#evText"); input.focus(); input.setSelectionRange(pos, pos);
+});
+document.addEventListener("toggle", e => {  // remember which opportunity is open so refreshes keep it
+  const el = e.target;
+  if (el.classList?.contains("opp") && el.open) { state.open = el.id.replace("gap-", ""); setHash(); }
+}, true);
+
+loadOverview().catch(e => { $("#main").innerHTML = `<div class="empty">Couldn't load the farm: ${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>
