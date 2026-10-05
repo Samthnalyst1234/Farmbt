@@ -2,6 +2,8 @@
 
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue) ![Tests](https://img.shields.io/badge/tests-28%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
+![Farmbt: reliable AI research on free-tier models](docs/images/cover.png)
+
 Describe a problem area in plain words. A team of LLM agents researches it on the live web, explains how the existing
 approaches work, finds the gaps that are still unsolved, tries to disprove its own conclusions, designs solutions for
 the best gap, checks them against existing products and papers, and writes an experiment plan to test the winner.
